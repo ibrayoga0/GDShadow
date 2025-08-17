@@ -8,6 +8,9 @@ export default function Dashboard({ session }) {
   const [input, setInput] = useState('')
   const [title, setTitle] = useState('')
   const [error, setError] = useState('')
+  const PAGE_SIZE = 5
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
 
   const user = session.user
 
@@ -32,14 +35,19 @@ export default function Dashboard({ session }) {
     return ''
   }
 
-  const fetchLinks = async () => {
+  const fetchLinks = async (p = page) => {
     setLoading(true)
-    const { data, error } = await supabase
+    const from = (p - 1) * PAGE_SIZE
+    const to = from + PAGE_SIZE - 1
+    const { data, error, count } = await supabase
       .from('links')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
+      .range(from, to)
     if (error) setError(error.message)
     setLinks(data || [])
+    setTotal(count || 0)
+    setPage(p)
     setLoading(false)
   }
 
@@ -108,15 +116,69 @@ export default function Dashboard({ session }) {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Daftar Link</h2>
-            <button className="btn btn-ghost" onClick={fetchLinks}>Refresh</button>
+            <button className="btn btn-ghost" onClick={() => fetchLinks(page)}>Refresh</button>
           </div>
           <LinkList items={links} origin={origin} />
+          {total > 0 && (
+            <Pager
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onChange={(p) => fetchLinks(p)}
+            />
+          )}
           {loading && <div className="text-neutral-400">Memuat…</div>}
           {!loading && links.length === 0 && (
             <div className="text-neutral-400">Belum ada data.</div>
           )}
         </section>
       </main>
+    </div>
+  )
+}
+
+function Pager({ page, pageSize, total, onChange }) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const canPrev = page > 1
+  const canNext = page < totalPages
+  // Build compact page numbers (window of up to 5)
+  let start = Math.max(1, page - 2)
+  let end = Math.min(totalPages, start + 4)
+  start = Math.max(1, end - 4)
+  const pages = []
+  for (let i = start; i <= end; i++) pages.push(i)
+
+  return (
+    <div className="flex items-center justify-end gap-2 mt-3">
+      <button
+        className="btn btn-ghost h-9 px-3 text-sm"
+        onClick={() => canPrev && onChange(page - 1)}
+        disabled={!canPrev}
+      >Prev</button>
+      {start > 1 && (
+        <>
+          <button className="btn btn-ghost h-9 px-3 text-sm" onClick={() => onChange(1)}>1</button>
+          {start > 2 && <span className="text-neutral-500">…</span>}
+        </>
+      )}
+      {pages.map(p => (
+        <button
+          key={p}
+          className={`h-9 px-3 text-sm rounded-lg border ${p === page ? 'bg-brand-600 border-brand-600 text-white' : 'btn btn-ghost'}`}
+          onClick={() => onChange(p)}
+        >{p}</button>
+      ))}
+      {end < totalPages && (
+        <>
+          {end < totalPages - 1 && <span className="text-neutral-500">…</span>}
+          <button className="btn btn-ghost h-9 px-3 text-sm" onClick={() => onChange(totalPages)}>{totalPages}</button>
+        </>
+      )}
+      <button
+        className="btn btn-ghost h-9 px-3 text-sm"
+        onClick={() => canNext && onChange(page + 1)}
+        disabled={!canNext}
+      >Next</button>
     </div>
   )
 }
