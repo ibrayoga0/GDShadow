@@ -51,7 +51,15 @@ export default function Dashboard({ session }) {
     const fileId = parseFileId(input)
     if (!fileId) { setError('Link Google Drive tidak valid.'); return }
     const original_url = input
-    const { error } = await supabase.from('links').insert({ file_id: fileId, original_url, title, created_by: user.id })
+    let finalTitle = title
+    if (!finalTitle) {
+      try {
+        const resp = await fetch(`/api/meta/${fileId}`)
+        const data = await resp.json()
+        if (data?.name) finalTitle = data.name
+      } catch {}
+    }
+    const { error } = await supabase.from('links').insert({ file_id: fileId, original_url, title: finalTitle, created_by: user.id })
     if (error) { setError(error.message); return }
     setInput(''); setTitle('')
     fetchLinks()
@@ -64,7 +72,7 @@ export default function Dashboard({ session }) {
       <header className="border-b border-neutral-800">
         <div className="container-narrow flex items-center justify-between py-4">
           <div className="flex items-center gap-3">
-            <div className="size-8 rounded bg-brand-600 grid place-items-center font-bold">G</div>
+            <img src="/gdshadow-logo.png" alt="GDShadow" className="h-8 w-auto" />
             <div>
               <div className="font-semibold">GDShadow</div>
               <div className="text-xs text-neutral-400">Admin Dashboard</div>
@@ -80,17 +88,17 @@ export default function Dashboard({ session }) {
       <main className="container-narrow py-8 space-y-8">
         <section className="card p-6">
           <h2 className="text-lg font-semibold mb-4">Tambah Link</h2>
-          <form onSubmit={onAdd} className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+          <form onSubmit={onAdd} className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
             <div className="grid gap-2 sm:col-span-1">
               <label className="text-sm text-neutral-300">Link Google Drive</label>
-              <input className="input" placeholder="https://drive.google.com/file/d/FILE_ID/view?..." value={input} onChange={e => setInput(e.target.value)} />
+              <input className="input text-base py-3" placeholder="https://drive.google.com/file/d/FILE_ID/view?..." value={input} onChange={e => setInput(e.target.value)} />
             </div>
             <div className="grid gap-2 sm:col-span-1">
               <label className="text-sm text-neutral-300">Judul (opsional)</label>
-              <input className="input" placeholder="Nama video" value={title} onChange={e => setTitle(e.target.value)} />
+              <input className="input text-base py-3" placeholder="Nama video" value={title} onChange={e => setTitle(e.target.value)} />
             </div>
             <div className="sm:row-start-2 sm:col-span-2">
-              <button className="btn btn-primary w-full sm:w-auto">Generate</button>
+              <button className="btn btn-primary w-full sm:w-auto h-11 text-base">Generate</button>
             </div>
           </form>
           {error && <div className="text-sm text-red-400 mt-3">{error}</div>}

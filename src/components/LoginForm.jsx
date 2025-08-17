@@ -17,17 +17,17 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-5">
       <div className="grid gap-2">
         <label className="text-sm text-neutral-300">Email</label>
-        <input className="input" type="email" placeholder="admin@email.com" value={email} onChange={e => setEmail(e.target.value)} required />
+        <input className="input text-base py-3" type="email" placeholder="admin@email.com" value={email} onChange={e => setEmail(e.target.value)} required />
       </div>
       <div className="grid gap-2">
         <label className="text-sm text-neutral-300">Password</label>
-        <input className="input" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+        <input className="input text-base py-3" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
       </div>
       {error && <div className="text-sm text-red-400">{error}</div>}
-      <button type="submit" className="btn btn-primary w-full" disabled={loading}>
+      <button type="submit" className="btn btn-primary w-full h-11 text-base" disabled={loading}>
         {loading ? 'Masuk…' : 'Login' }
       </button>
     </form>

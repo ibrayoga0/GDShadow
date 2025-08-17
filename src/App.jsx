@@ -33,13 +33,16 @@ export default function App() {
 
 function AuthGate({ reason }) {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="container-narrow">
-        <div className="card p-8">
-          <div className="mb-6">
+    <div className="min-h-screen grid place-items-center p-6">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-6 flex flex-col items-center gap-3">
+          <img src="/gdshadow-logo.png" alt="GDShadow" className="h-12 w-auto" />
+          <div>
             <h1 className="text-2xl font-semibold">GDShadow Admin</h1>
             <p className="text-neutral-400 mt-1">{reason}</p>
           </div>
+        </div>
+        <div className="card p-6 sm:p-8">
           <LoginForm />
         </div>
       </div>
