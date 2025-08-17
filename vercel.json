@@ -1,0 +1,13 @@
+{
+  "rewrites": [
+    { "source": "/d/:fileId", "destination": "/api/d/:fileId" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" }
+      ]
+    }
+  ]
+}
