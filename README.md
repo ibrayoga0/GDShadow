@@ -94,10 +94,5 @@ create policy "clicks_read" on public.link_clicks for select using (auth.role() 
 - Click analytics optional; won't block redirect if disabled.
 - Minimalist, fast, responsive UI.
 
-## Shadow Player
-- Default preview engine can be set in Settings → Player.
-- Per-link toggle available (Drive vs Shadow).
-- Player source via proxy: `/api/stream/:fileId` or set `VITE_PROXY_BASE_URL` for external.
-- Database additions:
-  - Column `use_shadow boolean default null` on `public.links` (null = follow global default).
-  - Table `public.app_settings (key text primary key, value text)` to store `default_preview_engine`.
+## Preview
+- Admin preview uses Google Drive embed.

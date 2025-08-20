@@ -7,7 +7,6 @@ export default function VideoPreview({ fileId }) {
         <iframe
           src={preview}
           allow="autoplay; fullscreen"
-          allowFullScreen
           className="w-full h-full"
           title={`Preview ${fileId}`}
         />

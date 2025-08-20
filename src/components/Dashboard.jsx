@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import LinkList from './LinkList'
-import ShadowPlayer from './ShadowPlayer'
 
 export default function Dashboard({ session }) {
   const [links, setLinks] = useState([])
@@ -12,7 +11,6 @@ export default function Dashboard({ session }) {
   const PAGE_SIZE = 5
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
-  const [defaultEngine, setDefaultEngine] = useState('drive') // 'drive' | 'shadow'
 
   const user = session.user
 
@@ -53,14 +51,7 @@ export default function Dashboard({ session }) {
     setLoading(false)
   }
 
-  useEffect(() => { fetchLinks(); fetchDefaultEngine() }, [])
-
-  const fetchDefaultEngine = async () => {
-    try {
-      const { data, error } = await supabase.from('app_settings').select('key,value').eq('key', 'default_preview_engine').maybeSingle()
-      if (!error && data?.value) setDefaultEngine(data.value)
-    } catch {}
-  }
+  useEffect(() => { fetchLinks() }, [])
 
   const onAdd = async (e) => {
     e.preventDefault()
@@ -84,41 +75,37 @@ export default function Dashboard({ session }) {
 
   const logout = async () => { await supabase.auth.signOut() }
 
-  const toggleUseShadow = async (item, next) => {
-    try {
-      const { error } = await supabase.from('links').update({ use_shadow: next }).eq('id', item.id)
-      if (!error) fetchLinks(page)
-    } catch {}
-  }
-
-  const saveDefaultEngine = async (engine) => {
-    setDefaultEngine(engine)
-    try {
-      // upsert by key
-      const { error } = await supabase.from('app_settings').upsert({ key: 'default_preview_engine', value: engine }, { onConflict: 'key' })
-      if (!error) return
-    } catch {}
-  }
+  // Shadow Player removed: no per-item or global toggles
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-neutral-800">
-        <div className="container-narrow flex items-center justify-between py-4">
-          <div className="flex items-center gap-3">
-            <img src="/gdshadow-logo.png" alt="GDShadow" className="h-8 w-auto" />
-            <div>
-              <div className="font-semibold">GDShadow</div>
-              <div className="text-xs text-neutral-400">Admin Dashboard</div>
+    <div className="min-h-screen grid grid-cols-[240px_1fr]">
+      {/* Sidebar */}
+      <aside className="hidden md:block bg-neutral-950 border-r border-neutral-900 p-4">
+        <div className="flex items-center gap-2 mb-6">
+          <img src="/gdshadow-logo.png" alt="GDShadow" className="h-7 w-auto" />
+          <div className="font-semibold">GDShadow</div>
+        </div>
+        <nav className="grid gap-1 text-sm">
+          <a className="btn btn-ghost w-full justify-start">Dashboard</a>
+          <a className="btn btn-ghost w-full justify-start">Links</a>
+          <a className="btn btn-ghost w-full justify-start">Settings</a>
+          <a className="btn btn-ghost w-full justify-start">Logs</a>
+        </nav>
+      </aside>
+
+      <div className="min-h-screen flex flex-col">
+        {/* Topbar */}
+        <header className="border-b border-neutral-900">
+          <div className="px-6 py-3 flex items-center justify-between">
+            <div className="text-sm text-neutral-400">Dashboard / Links</div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-neutral-400 hidden sm:inline">{user.email}</span>
+              <button className="btn btn-ghost" onClick={logout}>Logout</button>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-neutral-400 hidden sm:inline">{user.email}</span>
-            <button className="btn btn-ghost" onClick={logout}>Logout</button>
-          </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="container-narrow py-8 space-y-8">
+        <main className="p-6 space-y-8">
         <section className="card p-6">
           <h2 className="text-lg font-semibold mb-4">Tambah Link</h2>
           <form onSubmit={onAdd} className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
@@ -138,50 +125,12 @@ export default function Dashboard({ session }) {
           <div className="text-xs text-neutral-500 mt-3">GD link akan menjadi: <span className="badge">{origin}/d/FILE_ID</span></div>
         </section>
 
-        <section className="card p-6">
-          <h2 className="text-lg font-semibold mb-3">Settings → Player</h2>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="text-sm text-neutral-300">Default Preview Engine</div>
-            <div className="flex gap-2">
-              <button
-                className={`btn ${defaultEngine === 'drive' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => saveDefaultEngine('drive')}
-              >Google Drive</button>
-              <button
-                className={`btn ${defaultEngine === 'shadow' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => saveDefaultEngine('shadow')}
-              >Shadow Player</button>
-            </div>
-          </div>
-        </section>
-
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Daftar Link</h2>
             <button className="btn btn-ghost" onClick={() => fetchLinks(page)}>Refresh</button>
           </div>
-          <LinkList
-            items={links}
-            origin={origin}
-            defaultEngine={defaultEngine}
-            onToggleUseShadow={toggleUseShadow}
-            renderPreview={(fileId, useShadow) => (
-              useShadow ? (
-                <ShadowPlayer fileId={fileId} />
-              ) : (
-                <div className="mt-4">
-                  {/* Fall back to Drive preview */}
-                  <iframe
-                    src={`https://drive.google.com/file/d/${fileId}/preview`}
-                    allow="autoplay; fullscreen"
-                    allowFullScreen
-                    className="w-full aspect-video rounded-lg border border-neutral-800"
-                    title={`Preview ${fileId}`}
-                  />
-                </div>
-              )
-            )}
-          />
+          <LinkList items={links} origin={origin} />
           {total > 0 && (
             <Pager
               page={page}
@@ -195,7 +144,8 @@ export default function Dashboard({ session }) {
             <div className="text-neutral-400">Belum ada data.</div>
           )}
         </section>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

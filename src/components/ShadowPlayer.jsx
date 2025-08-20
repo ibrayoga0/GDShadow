@@ -106,7 +106,7 @@ export default function ShadowPlayer({ fileId, autoplay = false, muted = false, 
         className="w-full h-full"
         playsInline
         muted={muted}
-        autoPlay={autoplay}
+  autoPlay={autoplay}
         preload="metadata"
         poster={poster}
         controls={false}
@@ -133,7 +133,19 @@ export default function ShadowPlayer({ fileId, autoplay = false, muted = false, 
 
       {/* states */}
       {buffering && <div className="absolute inset-0 grid place-items-center text-sm text-neutral-300">Buffering…</div>}
-      {error && <div className="absolute inset-0 grid place-items-center text-sm text-red-400">{error}</div>}
+      {error && (
+        <div className="absolute inset-0 grid place-items-center">
+          <div className="card p-4 text-center">
+            <div className="text-red-400 text-sm mb-2">{error}</div>
+            <a
+              className="btn btn-primary"
+              href={`https://drive.google.com/file/d/${fileId}/preview`}
+              target="_blank"
+              rel="noreferrer"
+            >Play with Drive Player</a>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
