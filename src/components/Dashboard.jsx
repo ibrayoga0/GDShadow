@@ -339,7 +339,24 @@ function Settings({ origin }) {
   const [disqus, setDisqus] = useState(localStorage.getItem('disqus_shortname') || '')
   const [saved, setSaved] = useState(false)
 
-  const save = () => {
+  useEffect(() => {
+    (async () => {
+      try {
+        const resp = await fetch('/api/settings/get')
+        const json = await resp.json()
+        const s = json?.settings || {}
+        if (s.default_player) setDefaultPlayer(s.default_player)
+        if (s.disqus_shortname) setDisqus(s.disqus_shortname)
+      } catch {}
+    })()
+  }, [])
+
+  const save = async () => {
+    try {
+      await fetch('/api/settings/set', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'default_player', value: defaultPlayer }) })
+      await fetch('/api/settings/set', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'disqus_shortname', value: disqus }) })
+    } catch {}
+    // local fallback
     localStorage.setItem('default_player', defaultPlayer)
     localStorage.setItem('disqus_shortname', disqus)
     setSaved(true)
