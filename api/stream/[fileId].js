@@ -1,5 +1,3 @@
-import { Readable } from 'stream'
-
 export default async function handler(req, res) {
   // CORS preflight
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -12,7 +10,56 @@ export default async function handler(req, res) {
   const safe = /^[a-zA-Z0-9_-]{10,}$/
   if (!safe.test(fileId)) return res.status(400).send('Invalid file ID')
 
-  // Removed: Shadow Player streaming proxy
+  const base = `https://drive.google.com/uc?export=download&id=${fileId}`
+  const range = req.headers['range']
+  let cookie = ''
+
+  try {
+    // First request (allow redirects). Some files require a confirm token.
+    let url = base
+    for (let i = 0; i < 2; i++) { // try up to 2 passes (token flow)
+      const r = await fetch(url, {
+        method: 'GET',
+        headers: {
+          ...(range ? { Range: range } : {}),
+          'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0',
+          ...(cookie ? { Cookie: cookie } : {}),
+        },
+        redirect: 'manual',
+      })
+
+      // Handle redirect
+      if (r.status >= 300 && r.status < 400) {
+        const loc = r.headers.get('location')
+        const setCookie = r.headers.get('set-cookie')
+        if (setCookie) cookie = mergeCookie(cookie, setCookie)
+        if (loc) { url = new URL(loc, 'https://drive.google.com').toString(); continue }
+      }
+
+      // If HTML returned with confirm token, extract and retry
+      const contentType = r.headers.get('content-type') || ''
+      if (contentType.includes('text/html')) {
+        const html = await r.text()
+        const m = html.match(/confirm=([0-9A-Za-z_\-]+)/)
+        if (m?.[1]) { url = `${base}&confirm=${m[1]}`; continue }
+        // Fallback: serve small HTML error
+        res.status(502).send('Upstream blocked the request')
+        return
+      }
+
+      // Stream response
+      passHeaders(r, res)
+      res.status(r.status)
+      if (r.body) r.body.pipe(res)
+      else res.end()
+      return
+    }
+
+    // If loop exits without streaming
+    return res.status(502).send('Unable to fetch from Drive')
+  } catch (e) {
+    return res.status(500).send('Proxy error')
+  }
 }
 
 function passHeaders(r, res) {

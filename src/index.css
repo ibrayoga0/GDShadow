@@ -14,3 +14,7 @@
 .btn-primary { @apply bg-brand-600 hover:bg-brand-700 text-white; }
 .btn-ghost { @apply bg-neutral-900 hover:bg-neutral-800 border border-neutral-800; }
 .badge { @apply text-xs px-2 py-1 rounded bg-neutral-800 border border-neutral-700; }
+
+/* brand gradient helpers */
+.brand-grad { @apply bg-gradient-to-r from-brand-700 via-brand-600 to-brand-500; }
+.text-grad { @apply bg-clip-text text-transparent brand-grad; }

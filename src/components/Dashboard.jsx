@@ -12,7 +12,7 @@ export default function Dashboard({ session }) {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [section, setSection] = useState('dashboard') // dashboard | links | settings | logs
-  const [stats, setStats] = useState({ totalLinks: 0, totalClicks: 0, recent: [] })
+  const [stats, setStats] = useState({ totalLinks: 0, totalClicks: 0, totalViews: 0, totalDownloads: 0, recent: [] })
   const [logs, setLogs] = useState([])
   const [logsPage, setLogsPage] = useState(1)
   const LOGS_SIZE = 10
@@ -60,9 +60,11 @@ export default function Dashboard({ session }) {
   const fetchStats = async () => {
     try {
       const { data: recent } = await supabase.from('links').select('*').order('created_at', { ascending: false }).limit(5)
-      const totalLinks = await fetchCount('links')
-      const totalClicks = await fetchAllClicks()
-      setStats({ totalLinks, totalClicks, recent: recent || [] })
+  const totalLinks = await fetchCount('links')
+  const totalClicks = await fetchSum('links', 'clicks')
+  const totalViews = await fetchSum('links', 'views')
+  const totalDownloads = await fetchSum('links', 'downloads')
+  setStats({ totalLinks, totalClicks, totalViews, totalDownloads, recent: recent || [] })
     } catch {}
   }
 
@@ -187,7 +189,8 @@ export default function Dashboard({ session }) {
           {section==='dashboard' && (
             <section className="grid gap-6 lg:grid-cols-3">
               <div className="card p-6"><div className="text-sm text-neutral-400">Total Links</div><div className="text-3xl font-semibold mt-1">{stats.totalLinks}</div></div>
-              <div className="card p-6"><div className="text-sm text-neutral-400">Total Clicks</div><div className="text-3xl font-semibold mt-1">{stats.totalClicks}</div></div>
+              <div className="card p-6"><div className="text-sm text-neutral-400">Total Views</div><div className="text-3xl font-semibold mt-1">{stats.totalViews}</div></div>
+              <div className="card p-6"><div className="text-sm text-neutral-400">Total Downloads</div><div className="text-3xl font-semibold mt-1">{stats.totalDownloads}</div></div>
               <div className="card p-6"><div className="text-sm text-neutral-400">User</div><div className="text-3xl font-semibold mt-1">{user.email}</div></div>
               <div className="lg:col-span-3 card p-0 overflow-hidden">
                 <div className="p-4 border-b border-neutral-800 font-semibold">Recent Links</div>
@@ -196,7 +199,8 @@ export default function Dashboard({ session }) {
                     <tr className="border-b border-neutral-800">
                       <th className="text-left p-3">Title</th>
                       <th className="text-left p-3">FILE_ID</th>
-                      <th className="text-left p-3">Clicks</th>
+                      <th className="text-left p-3">Views</th>
+                      <th className="text-left p-3">Downloads</th>
                       <th className="text-left p-3">Created</th>
                     </tr>
                   </thead>
@@ -205,7 +209,8 @@ export default function Dashboard({ session }) {
                       <tr key={r.id} className="border-b border-neutral-900 hover:bg-neutral-900/40">
                         <td className="p-3">{r.title || 'Tanpa Judul'}</td>
                         <td className="p-3 text-xs text-neutral-400">{r.file_id}</td>
-                        <td className="p-3">{r.clicks || 0}</td>
+                        <td className="p-3">{r.views ?? r.clicks ?? 0}</td>
+                        <td className="p-3">{r.downloads ?? 0}</td>
                         <td className="p-3 text-xs text-neutral-400">{new Date(r.created_at).toLocaleString()}</td>
                       </tr>
                     ))}
@@ -219,17 +224,7 @@ export default function Dashboard({ session }) {
           )}
 
           {section==='settings' && (
-            <section className="grid gap-6 lg:grid-cols-2">
-              <div className="card p-6">
-                <div className="text-lg font-semibold mb-2">General</div>
-                <div className="text-sm text-neutral-400">Domain: {origin}</div>
-                <div className="text-sm text-neutral-400 mt-1">Supabase URL set: {Boolean(import.meta.env.VITE_SUPABASE_URL) ? 'Yes' : 'No'}</div>
-              </div>
-              <div className="card p-6">
-                <div className="text-lg font-semibold mb-2">Tips</div>
-                <div className="text-sm text-neutral-400">Gunakan link Drive yang valid. Judul otomatis diambil jika dikosongkan.</div>
-              </div>
-            </section>
+            <Settings origin={origin} />
           )}
 
           {section==='logs' && (
@@ -331,5 +326,50 @@ async function fetchAllClicks() {
   const { data, error } = await supabase.from('links').select('clicks')
   if (error || !data) return 0
   return data.reduce((a, b) => a + (b.clicks || 0), 0)
+}
+
+async function fetchSum(table, column) {
+  const { data, error } = await supabase.from(table).select(column)
+  if (error || !data) return 0
+  return data.reduce((a, b) => a + (b[column] || 0), 0)
+}
+
+function Settings({ origin }) {
+  const [defaultPlayer, setDefaultPlayer] = useState(localStorage.getItem('default_player') || 'proxy')
+  const [disqus, setDisqus] = useState(localStorage.getItem('disqus_shortname') || '')
+  const [saved, setSaved] = useState(false)
+
+  const save = () => {
+    localStorage.setItem('default_player', defaultPlayer)
+    localStorage.setItem('disqus_shortname', disqus)
+    setSaved(true)
+    setTimeout(()=>setSaved(false), 1500)
+  }
+
+  return (
+    <section className="grid gap-6 lg:grid-cols-2">
+      <div className="card p-6">
+        <div className="text-lg font-semibold mb-2">General</div>
+        <div className="text-sm text-neutral-400">Domain: {origin}</div>
+        <div className="text-sm text-neutral-400 mt-1">Supabase URL set: {Boolean(import.meta.env.VITE_SUPABASE_URL) ? 'Yes' : 'No'}</div>
+        <div className="mt-4 grid gap-2">
+          <label className="text-sm text-neutral-300">Default Player</label>
+          <div className="flex gap-2">
+            <button className={`btn h-9 px-3 text-sm ${defaultPlayer==='proxy'?'btn-primary':'btn-ghost'}`} onClick={()=>setDefaultPlayer('proxy')}>Proxy</button>
+            <button className={`btn h-9 px-3 text-sm ${defaultPlayer==='gdrive'?'btn-primary':'btn-ghost'}`} onClick={()=>setDefaultPlayer('gdrive')}>GDrive</button>
+          </div>
+        </div>
+      </div>
+      <div className="card p-6">
+        <div className="text-lg font-semibold mb-2">Komentar</div>
+        <label className="text-sm text-neutral-300">Disqus Shortname</label>
+        <input className="input mt-1" placeholder="contoh: mysite" value={disqus} onChange={e=>setDisqus(e.target.value)} />
+        <div className="mt-4 flex items-center gap-2">
+          <button className="btn btn-primary" onClick={save}>Simpan</button>
+          {saved && <span className="text-sm text-brand-400">Tersimpan</span>}
+        </div>
+      </div>
+    </section>
+  )
 }
 
