@@ -27,10 +27,17 @@ export default function LinkList({ items, origin }) {
               <>
                 <tr key={item.id} className="border-b border-neutral-900 hover:bg-neutral-900/40">
                   <td className="p-3 align-top">
-                    <div className="font-medium">{item.title || 'Tanpa Judul'}</div>
-                    {typeof item.clicks === 'number' && (
-                      <div className="text-xs text-neutral-400">{item.clicks} klik</div>
-                    )}
+                    <div className="flex items-start gap-3">
+                      {item.poster_url && (
+                        <img src={item.poster_url} alt="thumb" className="w-16 h-10 rounded object-cover border border-neutral-800" loading="lazy" />
+                      )}
+                      <div>
+                        <div className="font-medium">{item.title || 'Tanpa Judul'}</div>
+                        {typeof item.clicks === 'number' && (
+                          <div className="text-xs text-neutral-400">{item.clicks} klik</div>
+                        )}
+                      </div>
+                    </div>
                   </td>
                   <td className="p-3 align-top text-xs text-neutral-400 break-all">{item.original_url}</td>
                   <td className="p-3 align-top text-xs text-brand-400 break-all">{url}</td>

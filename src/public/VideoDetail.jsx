@@ -64,6 +64,11 @@ export default function VideoDetail() {
       </header>
 
       <main className="container-narrow py-6 space-y-6">
+        {meta?.poster_url && (
+          <div className="card p-0 overflow-hidden">
+            <img src={meta.poster_url} alt="poster" className="w-full max-h-[360px] object-cover" loading="lazy" />
+          </div>
+        )}
         <div className="card p-0 overflow-hidden">
           <div className="p-3 flex items-center justify-between border-b border-neutral-800">
             <div className="text-sm text-neutral-300">Player</div>

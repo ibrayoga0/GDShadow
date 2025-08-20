@@ -16,8 +16,14 @@ export default async function handler(req, res) {
     name = name.replace(/\s*[–-]\s*Google Drive\s*$/i, '').trim()
     if (!name) name = `Drive File ${fileId}`
 
+  // Prefer Google Drive thumbnail endpoint; fallback to og:image if present
+  let poster = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1280`
+  const og = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/i)
+  if (og?.[1]) poster = og[1]
+  const preview = `https://drive.google.com/file/d/${fileId}/preview`
+
     res.setHeader('Cache-Control', 'public, max-age=3600')
-    return res.status(200).json({ name })
+  return res.status(200).json({ name, poster, preview })
   } catch (e) {
     return res.status(500).json({ error: 'Metadata error' })
   }

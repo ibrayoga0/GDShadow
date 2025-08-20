@@ -83,6 +83,35 @@ drop policy if exists "clicks_read" on public.link_clicks;
 create policy "clicks_read" on public.link_clicks for select using (auth.role() = 'authenticated');
 ```
 
+### Upgrades for Streaming Platform
+```sql
+-- Extra columns for streaming stats & media
+alter table public.links add column if not exists views bigint default 0;
+alter table public.links add column if not exists downloads bigint default 0;
+alter table public.links add column if not exists description text;
+alter table public.links add column if not exists poster_url text;
+alter table public.links add column if not exists preview_url text;
+
+-- Optional: logs for downloads
+create table if not exists public.download_logs (
+  id bigserial primary key,
+  link_id uuid not null references public.links(id) on delete cascade,
+  downloaded_at timestamptz default now(),
+  referer text,
+  user_agent text,
+  ip inet
+);
+alter table public.download_logs enable row level security;
+drop policy if exists "download_logs_read" on public.download_logs;
+create policy "download_logs_read" on public.download_logs for select using (auth.role() = 'authenticated');
+
+-- App settings key-value
+create table if not exists public.app_settings (
+  key text primary key,
+  value text
+);
+```
+
 ## Usage flow
 - Admin logs in
 - Paste Google Drive share link

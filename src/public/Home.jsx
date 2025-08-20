@@ -12,8 +12,8 @@ export default function PublicHome() {
     async function load() {
       setLoading(true)
       // We use existing 'links' table as videos. Views/downloads fields may not exist yet, fallback to clicks as popularity.
-      const { data: latestData } = await supabase.from('links').select('*').order('created_at', { ascending: false }).limit(8)
-      const { data: popularData } = await supabase.from('links').select('*').order('clicks', { ascending: false }).limit(8)
+  const { data: latestData } = await supabase.from('links').select('*').order('created_at', { ascending: false }).limit(8)
+  const { data: popularData } = await supabase.from('links').select('*').order('downloads', { ascending: false }).limit(8)
       setLatest(latestData || [])
       setPopular(popularData || [])
       setViral(popularData || [])
@@ -56,10 +56,14 @@ function Section({ title, items }) {
         {items.map(item => (
           <Link key={item.id} to={`/v/${item.file_id}`} className="group">
             <div className="card p-0 overflow-hidden">
-              <div className="aspect-video bg-neutral-900" />
+              <div className="aspect-video bg-neutral-900">
+                {item.poster_url && (
+                  <img src={item.poster_url} alt="thumb" className="w-full h-full object-cover" loading="lazy" />
+                )}
+              </div>
               <div className="p-3">
                 <div className="text-sm truncate group-hover:text-brand-400 transition-colors">{item.title || 'Tanpa Judul'}</div>
-                <div className="text-xs text-neutral-500 mt-1">{(item.clicks||0)} views</div>
+                <div className="text-xs text-neutral-500 mt-1">{(item.views ?? item.clicks ?? 0)} views • {(item.downloads ?? 0)} downloads</div>
               </div>
             </div>
           </Link>

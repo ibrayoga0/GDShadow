@@ -94,15 +94,28 @@ export default function Dashboard({ session }) {
     if (!fileId) { setError('Link Google Drive tidak valid.'); return }
     const original_url = input
     let finalTitle = title
+    let poster_url = ''
+    let preview_url = ''
     if (!finalTitle) {
       try {
         const resp = await fetch(`/api/meta/${fileId}`)
         const data = await resp.json()
         if (data?.name) finalTitle = data.name
+        if (data?.poster) poster_url = data.poster
+        if (data?.preview) preview_url = data.preview
       } catch {}
     }
     const { error } = await supabase.from('links').insert({ file_id: fileId, original_url, title: finalTitle, created_by: user.id })
     if (error) { setError(error.message); return }
+    // Best-effort update extra fields if columns exist
+    try {
+      const patch = {}
+      if (poster_url) patch.poster_url = poster_url
+      if (preview_url) patch.preview_url = preview_url
+      if (Object.keys(patch).length > 0) {
+        await supabase.from('links').update(patch).eq('file_id', fileId)
+      }
+    } catch {}
     setInput(''); setTitle('')
     fetchLinks()
   }
