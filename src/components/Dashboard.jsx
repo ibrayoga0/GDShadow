@@ -11,6 +11,12 @@ export default function Dashboard({ session }) {
   const PAGE_SIZE = 5
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
+  const [section, setSection] = useState('dashboard') // dashboard | links | settings | logs
+  const [stats, setStats] = useState({ totalLinks: 0, totalClicks: 0, recent: [] })
+  const [logs, setLogs] = useState([])
+  const [logsPage, setLogsPage] = useState(1)
+  const LOGS_SIZE = 10
+  const [logsTotal, setLogsTotal] = useState(0)
 
   const user = session.user
 
@@ -51,7 +57,33 @@ export default function Dashboard({ session }) {
     setLoading(false)
   }
 
-  useEffect(() => { fetchLinks() }, [])
+  const fetchStats = async () => {
+    try {
+      const { data: recent } = await supabase.from('links').select('*').order('created_at', { ascending: false }).limit(5)
+      const totalLinks = await fetchCount('links')
+      const totalClicks = await fetchAllClicks()
+      setStats({ totalLinks, totalClicks, recent: recent || [] })
+    } catch {}
+  }
+
+  const fetchLogs = async (p = logsPage) => {
+    try {
+      const from = (p - 1) * LOGS_SIZE
+      const to = from + LOGS_SIZE - 1
+      const { data, error, count } = await supabase
+        .from('link_clicks')
+        .select('id, clicked_at, referer, user_agent, ip, link:links(file_id,title)', { count: 'exact' })
+        .order('clicked_at', { ascending: false })
+        .range(from, to)
+      if (!error) {
+        setLogs(data || [])
+        setLogsTotal(count || 0)
+        setLogsPage(p)
+      }
+    } catch {}
+  }
+
+  useEffect(() => { fetchLinks(); fetchStats(); if (section === 'logs') fetchLogs() }, [section])
 
   const onAdd = async (e) => {
     e.preventDefault()
@@ -80,16 +112,16 @@ export default function Dashboard({ session }) {
   return (
     <div className="min-h-screen grid grid-cols-[240px_1fr]">
       {/* Sidebar */}
-      <aside className="hidden md:block bg-neutral-950 border-r border-neutral-900 p-4">
+    <aside className="hidden md:block bg-neutral-950 border-r border-neutral-900 p-4">
         <div className="flex items-center gap-2 mb-6">
           <img src="/gdshadow-logo.png" alt="GDShadow" className="h-7 w-auto" />
           <div className="font-semibold">GDShadow</div>
         </div>
         <nav className="grid gap-1 text-sm">
-          <a className="btn btn-ghost w-full justify-start">Dashboard</a>
-          <a className="btn btn-ghost w-full justify-start">Links</a>
-          <a className="btn btn-ghost w-full justify-start">Settings</a>
-          <a className="btn btn-ghost w-full justify-start">Logs</a>
+      <button className={`btn w-full justify-start ${section==='dashboard'?'btn-primary':'btn-ghost'}`} onClick={()=>setSection('dashboard')}>Dashboard</button>
+      <button className={`btn w-full justify-start ${section==='links'?'btn-primary':'btn-ghost'}`} onClick={()=>setSection('links')}>Links</button>
+      <button className={`btn w-full justify-start ${section==='settings'?'btn-primary':'btn-ghost'}`} onClick={()=>setSection('settings')}>Settings</button>
+      <button className={`btn w-full justify-start ${section==='logs'?'btn-primary':'btn-ghost'}`} onClick={()=>setSection('logs')}>Logs</button>
         </nav>
       </aside>
 
@@ -97,7 +129,7 @@ export default function Dashboard({ session }) {
         {/* Topbar */}
         <header className="border-b border-neutral-900">
           <div className="px-6 py-3 flex items-center justify-between">
-            <div className="text-sm text-neutral-400">Dashboard / Links</div>
+            <div className="text-sm text-neutral-400 capitalize">{section}</div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-neutral-400 hidden sm:inline">{user.email}</span>
               <button className="btn btn-ghost" onClick={logout}>Logout</button>
@@ -106,7 +138,9 @@ export default function Dashboard({ session }) {
         </header>
 
         <main className="p-6 space-y-8">
-        <section className="card p-6">
+          {section==='links' && (
+          <section className="space-y-6">
+            <div className="card p-6">
           <h2 className="text-lg font-semibold mb-4">Tambah Link</h2>
           <form onSubmit={onAdd} className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
             <div className="grid gap-2 sm:col-span-1">
@@ -123,27 +157,119 @@ export default function Dashboard({ session }) {
           </form>
           {error && <div className="text-sm text-red-400 mt-3">{error}</div>}
           <div className="text-xs text-neutral-500 mt-3">GD link akan menjadi: <span className="badge">{origin}/d/FILE_ID</span></div>
-        </section>
+            </div>
+            <div className="card p-0 overflow-hidden">
+              <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Daftar Link</h2>
+                <button className="btn btn-ghost h-9 px-3 text-sm" onClick={() => fetchLinks(page)}>Refresh</button>
+              </div>
+              <div className="p-4">
+                <LinkList items={links} origin={origin} />
+                {loading && <div className="text-neutral-400">Memuat…</div>}
+                {!loading && links.length === 0 && (
+                  <div className="text-neutral-400">Belum ada data.</div>
+                )}
+              </div>
+              {total > 0 && (
+                <div className="p-4 border-t border-neutral-800">
+                  <Pager
+                    page={page}
+                    pageSize={PAGE_SIZE}
+                    total={total}
+                    onChange={(p) => fetchLinks(p)}
+                  />
+                </div>
+              )}
+            </div>
+          </section>
+          )}
 
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Daftar Link</h2>
-            <button className="btn btn-ghost" onClick={() => fetchLinks(page)}>Refresh</button>
-          </div>
-          <LinkList items={links} origin={origin} />
-          {total > 0 && (
-            <Pager
-              page={page}
-              pageSize={PAGE_SIZE}
-              total={total}
-              onChange={(p) => fetchLinks(p)}
-            />
+          {section==='dashboard' && (
+            <section className="grid gap-6 lg:grid-cols-3">
+              <div className="card p-6"><div className="text-sm text-neutral-400">Total Links</div><div className="text-3xl font-semibold mt-1">{stats.totalLinks}</div></div>
+              <div className="card p-6"><div className="text-sm text-neutral-400">Total Clicks</div><div className="text-3xl font-semibold mt-1">{stats.totalClicks}</div></div>
+              <div className="card p-6"><div className="text-sm text-neutral-400">User</div><div className="text-3xl font-semibold mt-1">{user.email}</div></div>
+              <div className="lg:col-span-3 card p-0 overflow-hidden">
+                <div className="p-4 border-b border-neutral-800 font-semibold">Recent Links</div>
+                <table className="w-full text-sm">
+                  <thead className="text-neutral-400">
+                    <tr className="border-b border-neutral-800">
+                      <th className="text-left p-3">Title</th>
+                      <th className="text-left p-3">FILE_ID</th>
+                      <th className="text-left p-3">Clicks</th>
+                      <th className="text-left p-3">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.recent.map(r => (
+                      <tr key={r.id} className="border-b border-neutral-900 hover:bg-neutral-900/40">
+                        <td className="p-3">{r.title || 'Tanpa Judul'}</td>
+                        <td className="p-3 text-xs text-neutral-400">{r.file_id}</td>
+                        <td className="p-3">{r.clicks || 0}</td>
+                        <td className="p-3 text-xs text-neutral-400">{new Date(r.created_at).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                    {stats.recent.length===0 && (
+                      <tr><td className="p-3 text-neutral-400" colSpan="4">Belum ada data.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           )}
-          {loading && <div className="text-neutral-400">Memuat…</div>}
-          {!loading && links.length === 0 && (
-            <div className="text-neutral-400">Belum ada data.</div>
+
+          {section==='settings' && (
+            <section className="grid gap-6 lg:grid-cols-2">
+              <div className="card p-6">
+                <div className="text-lg font-semibold mb-2">General</div>
+                <div className="text-sm text-neutral-400">Domain: {origin}</div>
+                <div className="text-sm text-neutral-400 mt-1">Supabase URL set: {Boolean(import.meta.env.VITE_SUPABASE_URL) ? 'Yes' : 'No'}</div>
+              </div>
+              <div className="card p-6">
+                <div className="text-lg font-semibold mb-2">Tips</div>
+                <div className="text-sm text-neutral-400">Gunakan link Drive yang valid. Judul otomatis diambil jika dikosongkan.</div>
+              </div>
+            </section>
           )}
-        </section>
+
+          {section==='logs' && (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Logs</h2>
+                <button className="btn btn-ghost" onClick={() => fetchLogs(logsPage)}>Refresh</button>
+              </div>
+              <div className="card p-0 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="text-neutral-400">
+                    <tr className="border-b border-neutral-800">
+                      <th className="text-left p-3">Time</th>
+                      <th className="text-left p-3">FILE_ID</th>
+                      <th className="text-left p-3">Title</th>
+                      <th className="text-left p-3">IP</th>
+                      <th className="text-left p-3">Referer</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logs.map(l => (
+                      <tr key={l.id} className="border-b border-neutral-900 hover:bg-neutral-900/40">
+                        <td className="p-3 text-xs">{new Date(l.clicked_at).toLocaleString()}</td>
+                        <td className="p-3 text-xs text-neutral-400">{l.link?.file_id || '-'}</td>
+                        <td className="p-3">{l.link?.title || '—'}</td>
+                        <td className="p-3 text-xs">{l.ip || '-'}</td>
+                        <td className="p-3 text-xs truncate max-w-[240px]">{l.referer || '-'}</td>
+                      </tr>
+                    ))}
+                    {logs.length===0 && (
+                      <tr><td className="p-3 text-neutral-400" colSpan="5">Belum ada data.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {logsTotal > 0 && (
+                <Pager page={logsPage} pageSize={LOGS_SIZE} total={logsTotal} onChange={(p)=>fetchLogs(p)} center />
+              )}
+            </section>
+          )}
         </main>
       </div>
     </div>
@@ -162,7 +288,7 @@ function Pager({ page, pageSize, total, onChange }) {
   for (let i = start; i <= end; i++) pages.push(i)
 
   return (
-    <div className="flex items-center justify-end gap-2 mt-3">
+    <div className="flex items-center justify-center gap-2 mt-3">
       <button
         className="btn btn-ghost h-9 px-3 text-sm"
         onClick={() => canPrev && onChange(page - 1)}
@@ -195,3 +321,15 @@ function Pager({ page, pageSize, total, onChange }) {
     </div>
   )
 }
+
+async function fetchCount(table) {
+  const { data, error, count } = await supabase.from(table).select('*', { count: 'exact', head: true })
+  return count || 0
+}
+
+async function fetchAllClicks() {
+  const { data, error } = await supabase.from('links').select('clicks')
+  if (error || !data) return 0
+  return data.reduce((a, b) => a + (b.clicks || 0), 0)
+}
+
