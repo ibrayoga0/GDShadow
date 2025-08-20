@@ -16,6 +16,7 @@ export default function VideoDetail() {
 
   const proxyUrl = `${origin}/api/stream/${fileId}`
   const drivePreview = `https://drive.google.com/file/d/${fileId}/preview`
+  const driveDownload = `https://drive.google.com/uc?export=download&id=${fileId}`
 
   useEffect(() => {
     setPlayer('proxy')
@@ -79,7 +80,18 @@ export default function VideoDetail() {
           </div>
           <div className="aspect-video bg-black">
             {player==='proxy' ? (
-              <video controls className="w-full h-full" src={proxyUrl} />
+              <video
+                key={`proxy-${fileId}`}
+                controls
+                preload="metadata"
+                playsInline
+                poster={meta?.poster_url || undefined}
+                className="w-full h-full"
+                onError={()=>setPlayer('gdrive')}
+              >
+                <source src={proxyUrl} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
             ) : (
               <iframe src={drivePreview} allow="autoplay; fullscreen" className="w-full h-full" title={`Preview ${fileId}`} />
             )}
@@ -96,7 +108,7 @@ export default function VideoDetail() {
           </div>
           <div className="mt-4">
             <a className="btn btn-primary" href={proxyUrl} target="_blank" rel="noreferrer" onClick={()=>{try{fetch(`/api/track/download?fileId=${fileId}`).catch(()=>{})}catch{}}}>Download via Proxy</a>
-            <a className="btn btn-ghost ml-2" href={`https://drive.google.com/uc?export=download&id=${fileId}`} target="_blank" rel="noreferrer" onClick={()=>{try{fetch(`/api/track/download?fileId=${fileId}`).catch(()=>{})}catch{}}}>Download via Drive</a>
+            <a className="btn btn-ghost ml-2" href={driveDownload} target="_blank" rel="noreferrer" onClick={()=>{try{fetch(`/api/track/download?fileId=${fileId}`).catch(()=>{})}catch{}}}>Download via Drive</a>
           </div>
         </div>
         <Comments disqusShortname={settings.disqus} identifier={fileId} />

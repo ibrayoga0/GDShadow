@@ -175,9 +175,12 @@ export default function Dashboard({ session }) {
           <div className="text-xs text-neutral-500 mt-3">GD link akan menjadi: <span className="badge">{origin}/d/FILE_ID</span></div>
             </div>
             <div className="card p-0 overflow-hidden">
-              <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
+              <div className="p-4 border-b border-neutral-800 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="text-lg font-semibold">Daftar Link</h2>
-                <button className="btn btn-ghost h-9 px-3 text-sm" onClick={() => fetchLinks(page)}>Refresh</button>
+                <div className="flex flex-wrap gap-2">
+                  <button className="btn btn-ghost h-9 px-3 text-sm" onClick={() => fetchLinks(page)}>Refresh</button>
+                  <AutoRegenAll onDone={() => fetchLinks(page)} />
+                </div>
               </div>
               <div className="p-4">
                 <LinkList items={links} origin={origin} />
@@ -201,12 +204,12 @@ export default function Dashboard({ session }) {
           )}
 
           {section==='dashboard' && (
-            <section className="grid gap-6 lg:grid-cols-3">
+            <section className="grid gap-6 lg:grid-cols-4">
               <div className="card p-6"><div className="text-sm text-neutral-400">Total Links</div><div className="text-3xl font-semibold mt-1">{stats.totalLinks}</div></div>
               <div className="card p-6"><div className="text-sm text-neutral-400">Total Views</div><div className="text-3xl font-semibold mt-1">{stats.totalViews}</div></div>
               <div className="card p-6"><div className="text-sm text-neutral-400">Total Downloads</div><div className="text-3xl font-semibold mt-1">{stats.totalDownloads}</div></div>
-              <div className="card p-6"><div className="text-sm text-neutral-400">User</div><div className="text-3xl font-semibold mt-1">{user.email}</div></div>
-              <div className="lg:col-span-2 card p-0 overflow-hidden">
+              <div className="card p-6"><div className="text-sm text-neutral-400">User</div><div className="text-base mt-1 break-all text-neutral-200">{user.email}</div></div>
+              <div className="lg:col-span-3 card p-0 overflow-hidden">
                 <div className="p-4 border-b border-neutral-800 font-semibold">Recent Links</div>
                 <table className="w-full text-sm">
                   <thead className="text-neutral-400">
@@ -234,7 +237,7 @@ export default function Dashboard({ session }) {
                   </tbody>
                 </table>
               </div>
-              <div className="card p-0 overflow-hidden">
+              <div className="lg:col-span-1 card p-0 overflow-hidden">
                 <div className="p-4 border-b border-neutral-800 font-semibold">Top Downloads</div>
                 <table className="w-full text-sm">
                   <thead className="text-neutral-400">
@@ -425,6 +428,50 @@ function Settings({ origin }) {
         </div>
       </div>
     </section>
+  )
+}
+
+function AutoRegenAll({ onDone }) {
+  const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState({ done: 0, total: 0 })
+
+  const run = async () => {
+    if (busy) return
+    setBusy(true)
+    try {
+      // fetch all file_ids in smaller pages to limit load
+      let from = 0; const size = 50; let total = 0; let done = 0
+      // get total
+      const { count } = await supabase.from('links').select('*', { count: 'exact', head: true })
+      total = count || 0
+      setProgress({ done, total })
+      while (from < total) {
+        const to = Math.min(from + size - 1, total - 1)
+        const { data } = await supabase.from('links').select('file_id').order('created_at', { ascending: false }).range(from, to)
+        for (const row of data || []) {
+          try {
+            const r = await fetch(`/api/meta/${row.file_id}`)
+            const json = await r.json()
+            const patch = {}
+            if (json?.poster) patch.poster_url = json.poster
+            if (json?.name) patch.title = json.name
+            if (Object.keys(patch).length>0) await supabase.from('links').update(patch).eq('file_id', row.file_id)
+          } catch {}
+          done += 1; setProgress({ done, total })
+          await new Promise(res=>setTimeout(res, 200)) // throttle
+        }
+        from += size
+      }
+    } finally {
+      setBusy(false)
+      onDone?.()
+    }
+  }
+
+  return (
+    <button className="btn btn-ghost h-9 px-3 text-sm" onClick={run} disabled={busy} title="Regenerate poster dari Google Drive untuk semua video">
+      {busy ? `Regen ${progress.done}/${progress.total}` : 'Auto Regen Semua Poster'}
+    </button>
   )
 }
 

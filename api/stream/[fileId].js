@@ -1,3 +1,5 @@
+import { Readable } from 'stream'
+
 export default async function handler(req, res) {
   // CORS preflight
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -19,7 +21,7 @@ export default async function handler(req, res) {
     let url = base
     for (let i = 0; i < 2; i++) { // try up to 2 passes (token flow)
       const r = await fetch(url, {
-        method: 'GET',
+        method: req.method === 'HEAD' ? 'HEAD' : 'GET',
         headers: {
           ...(range ? { Range: range } : {}),
           'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0',
@@ -50,8 +52,19 @@ export default async function handler(req, res) {
       // Stream response
       passHeaders(r, res)
       res.status(r.status)
-      if (r.body) r.body.pipe(res)
-      else res.end()
+      if (req.method === 'HEAD') { res.end(); return }
+      if (r.body) {
+        try {
+          // Convert Web ReadableStream to Node stream and pipe
+          Readable.fromWeb(r.body).pipe(res)
+        } catch {
+          // Fallback: buffer and send (less ideal for large files)
+          const buf = Buffer.from(await r.arrayBuffer())
+          res.end(buf)
+        }
+      } else {
+        res.end()
+      }
       return
     }
 
@@ -63,7 +76,7 @@ export default async function handler(req, res) {
 }
 
 function passHeaders(r, res) {
-  const pass = ['content-type', 'content-length', 'accept-ranges', 'content-range', 'last-modified', 'etag', 'cache-control']
+  const pass = ['content-type', 'content-length', 'accept-ranges', 'content-range', 'last-modified', 'etag', 'cache-control', 'content-disposition']
   pass.forEach((h) => {
     const v = r.headers.get(h)
     if (v) res.setHeader(h, v)
