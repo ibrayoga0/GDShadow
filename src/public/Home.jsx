@@ -14,9 +14,10 @@ export default function PublicHome() {
       // We use existing 'links' table as videos. Views/downloads fields may not exist yet, fallback to clicks as popularity.
   const { data: latestData } = await supabase.from('links').select('*').order('created_at', { ascending: false }).limit(8)
   const { data: popularData } = await supabase.from('links').select('*').order('downloads', { ascending: false }).limit(8)
+  const { data: viralData } = await supabase.from('links').select('*').order('views', { ascending: false }).limit(8)
       setLatest(latestData || [])
-      setPopular(popularData || [])
-      setViral(popularData || [])
+  setPopular((popularData && popularData.length>0) ? popularData : (latestData || []))
+  setViral((viralData && viralData.length>0) ? viralData : (popularData || latestData || []))
       setLoading(false)
     }
     load()

@@ -1,6 +1,7 @@
 {
   "rewrites": [
-  { "source": "/d/:fileId", "destination": "/api/d/:fileId" }
+  { "source": "/d/:fileId", "destination": "/api/d/:fileId" },
+  { "source": "/((?!api|.*\\..*).*)", "destination": "/index.html" }
   ],
   "headers": [
     {

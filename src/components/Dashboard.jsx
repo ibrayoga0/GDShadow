@@ -12,7 +12,7 @@ export default function Dashboard({ session }) {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [section, setSection] = useState('dashboard') // dashboard | links | settings | logs
-  const [stats, setStats] = useState({ totalLinks: 0, totalClicks: 0, totalViews: 0, totalDownloads: 0, recent: [] })
+  const [stats, setStats] = useState({ totalLinks: 0, totalClicks: 0, totalViews: 0, totalDownloads: 0, recent: [], topDownloads: [] })
   const [logs, setLogs] = useState([])
   const [logsPage, setLogsPage] = useState(1)
   const LOGS_SIZE = 10
@@ -59,12 +59,13 @@ export default function Dashboard({ session }) {
 
   const fetchStats = async () => {
     try {
-      const { data: recent } = await supabase.from('links').select('*').order('created_at', { ascending: false }).limit(5)
+  const { data: recent } = await supabase.from('links').select('*').order('created_at', { ascending: false }).limit(5)
+  const { data: topDownloads } = await supabase.from('links').select('*').order('downloads', { ascending: false }).limit(5)
   const totalLinks = await fetchCount('links')
   const totalClicks = await fetchSum('links', 'clicks')
   const totalViews = await fetchSum('links', 'views')
   const totalDownloads = await fetchSum('links', 'downloads')
-  setStats({ totalLinks, totalClicks, totalViews, totalDownloads, recent: recent || [] })
+  setStats({ totalLinks, totalClicks, totalViews, totalDownloads, recent: recent || [], topDownloads: topDownloads || [] })
     } catch {}
   }
 
@@ -205,7 +206,7 @@ export default function Dashboard({ session }) {
               <div className="card p-6"><div className="text-sm text-neutral-400">Total Views</div><div className="text-3xl font-semibold mt-1">{stats.totalViews}</div></div>
               <div className="card p-6"><div className="text-sm text-neutral-400">Total Downloads</div><div className="text-3xl font-semibold mt-1">{stats.totalDownloads}</div></div>
               <div className="card p-6"><div className="text-sm text-neutral-400">User</div><div className="text-3xl font-semibold mt-1">{user.email}</div></div>
-              <div className="lg:col-span-3 card p-0 overflow-hidden">
+              <div className="lg:col-span-2 card p-0 overflow-hidden">
                 <div className="p-4 border-b border-neutral-800 font-semibold">Recent Links</div>
                 <table className="w-full text-sm">
                   <thead className="text-neutral-400">
@@ -229,6 +230,30 @@ export default function Dashboard({ session }) {
                     ))}
                     {stats.recent.length===0 && (
                       <tr><td className="p-3 text-neutral-400" colSpan="4">Belum ada data.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="card p-0 overflow-hidden">
+                <div className="p-4 border-b border-neutral-800 font-semibold">Top Downloads</div>
+                <table className="w-full text-sm">
+                  <thead className="text-neutral-400">
+                    <tr className="border-b border-neutral-800">
+                      <th className="text-left p-3">Title</th>
+                      <th className="text-left p-3">Downloads</th>
+                      <th className="text-left p-3">Views</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.topDownloads.map(r => (
+                      <tr key={r.id} className="border-b border-neutral-900 hover:bg-neutral-900/40">
+                        <td className="p-3">{r.title || 'Tanpa Judul'}</td>
+                        <td className="p-3">{r.downloads ?? 0}</td>
+                        <td className="p-3">{r.views ?? r.clicks ?? 0}</td>
+                      </tr>
+                    ))}
+                    {stats.topDownloads.length===0 && (
+                      <tr><td className="p-3 text-neutral-400" colSpan="3">Belum ada data.</td></tr>
                     )}
                   </tbody>
                 </table>

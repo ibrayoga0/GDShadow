@@ -1,11 +1,31 @@
 import { useState } from 'react'
+import { supabase } from '../lib/supabaseClient'
 import VideoPreview from './VideoPreview'
 
 export default function LinkList({ items, origin }) {
   const [openId, setOpenId] = useState(null)
+  const [busy, setBusy] = useState(null)
 
   const copy = async (text) => {
     try { await navigator.clipboard.writeText(text) } catch {}
+  }
+
+  const regen = async (fileId) => {
+    try {
+      setBusy(fileId)
+      const r = await fetch(`/api/meta/${fileId}`)
+      const data = await r.json()
+      const patch = {}
+      if (data?.poster) patch.poster_url = data.poster
+      if (data?.name) patch.title = data.name
+      if (Object.keys(patch).length>0) {
+        await supabase.from('links').update(patch).eq('file_id', fileId)
+      }
+    } finally {
+      setBusy(null)
+      // soft refresh
+      try { location.reload() } catch {}
+    }
   }
 
   return (
@@ -48,6 +68,7 @@ export default function LinkList({ items, origin }) {
                       <button className="btn btn-ghost h-8 px-3" onClick={() => setOpenId(openId === item.id ? null : item.id)}>
                         {openId === item.id ? 'Tutup' : 'Preview'}
                       </button>
+                      <button className="btn btn-ghost h-8 px-3" onClick={() => regen(item.file_id)} disabled={busy===item.file_id}>{busy===item.file_id?'...':'Regen Poster'}</button>
                       <a className="btn btn-primary h-8 px-3" href={url} target="_blank" rel="noreferrer">Buka</a>
                     </div>
                   </td>
